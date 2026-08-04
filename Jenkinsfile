@@ -2,10 +2,12 @@ pipeline {
     agent any
 
     environment {
+        NODE_HOME = "/home/azureuser/.nvm/versions/node/v22.23.2"
+        SONAR_SCANNER_HOME = "/home/azureuser/sonar-scanner"
         ANDROID_HOME = "/home/azureuser/android-sdk"
         ANDROID_SDK_ROOT = "/home/azureuser/android-sdk"
         JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
-        PATH = "${JAVA_HOME}/bin:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${env.PATH}"
+        PATH = "${NODE_HOME}/bin:${SONAR_SCANNER_HOME}/bin:${JAVA_HOME}/bin:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${env.PATH}"
 
         APP_DIR = "examples/SampleApp"
         APK_PATH = "${APP_DIR}/android/app/build/outputs/apk/release/app-release.apk"
