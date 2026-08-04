@@ -4,11 +4,8 @@ import eslintPluginReactNativeOfficial from '@react-native/eslint-plugin';
 import eslintPluginComments from 'eslint-plugin-eslint-comments';
 import eslintPluginReactHooks from 'eslint-plugin-react-hooks';
 import eslintPluginJest from 'eslint-plugin-jest';
-
 import eslintReactNativeConfig from '@react-native/eslint-config';
-
 import tsEslint from 'typescript-eslint';
-
 /**
  * @react-native/eslint-config is for some reason still using the old notation
  * for globals. We parse them manually here to make sure they're compatible with
@@ -20,7 +17,6 @@ const globals = Object.keys(eslintReactNativeConfig.globals).reduce((acc, key) =
   }
   return acc;
 }, {});
-
 export default tsEslint.config(
   tsEslint.configs.recommended,
   {
@@ -59,6 +55,20 @@ export default tsEslint.config(
       ...eslintReactNativeConfig.rules,
       'jsx-quotes': ['error', 'prefer-single'],
       'react-native/no-inline-styles': 'off',
+    },
+  },
+  {
+    files: ['jest-setup.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        jest: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 );
