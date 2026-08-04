@@ -72,7 +72,10 @@ pipeline {
                     // (TypeError: createSerializable is not a function). Not a defect in this
                     // app's code — marking this stage unstable rather than blocking the pipeline
                     // on it until upstream resolves the mock incompatibility.
-                    sh 'yarn test || echo "Unit tests failed - known reanimated/worklets jest mock issue, continuing pipeline"'
+                    sh '''
+                        export PATH="$PWD/node_modules/.bin:$PATH"
+                        yarn test || echo "Unit tests failed - known reanimated/worklets jest mock issue, continuing pipeline"
+                    '''
                 }
             }
         }
