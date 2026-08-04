@@ -147,7 +147,8 @@ pipeline {
             echo "Build #${BUILD_NUMBER} failed — check the stage logs above."
         }
         always {
-            cleanWs()
+            // cleanWs()  // temporarily disabled for debugging — re-enable once pipeline runs clean
+            echo "Workspace left in place for debugging — re-enable cleanWs() once stable."
         }
     }
 }
