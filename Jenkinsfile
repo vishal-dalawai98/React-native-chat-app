@@ -98,6 +98,9 @@ pipeline {
                 dir("${APP_DIR}") {
                     sh '''
                         sonar-scanner \
+                          -Dsonar.projectKey=react-native-chat-sampleapp \
+                          -Dsonar.projectName="React Native Chat - SampleApp" \
+                          -Dsonar.sources=src \
                           -Dsonar.host.url=$SONAR_HOST_URL \
                           -Dsonar.login=$SONAR_TOKEN
                     '''
