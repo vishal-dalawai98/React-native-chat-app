@@ -81,8 +81,8 @@ pipeline {
             steps {
                 dir("${APP_DIR}/android") {
                     sh '''
-                        ./gradlew clean
-                        ./gradlew assembleRelease
+                        ./gradlew clean --no-daemon -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m"
+                        ./gradlew assembleRelease --no-daemon -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m"
                     '''
                 }
             }
