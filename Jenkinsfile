@@ -81,8 +81,7 @@ pipeline {
             steps {
                 dir("${APP_DIR}/android") {
                     sh '''
-                        ./gradlew clean --no-daemon -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m"
-                        ./gradlew assembleRelease --no-daemon -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m"
+                        ./gradlew assembleRelease --no-daemon --build-cache -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m" -PreactNativeArchitectures=arm64-v8a
                     '''
                 }
             }
@@ -108,6 +107,9 @@ pipeline {
             }
         }
 
+        /* Quality Gate removed — was blocking/slowing the pipeline waiting on Sonar's
+           webhook response. Analysis still runs and uploads to the Sonar dashboard
+           above; just no longer gates the pipeline on the pass/fail result.
         stage('Quality Gate') {
             steps {
                 dir("${APP_DIR}") {
@@ -117,15 +119,11 @@ pipeline {
                 }
             }
         }
+        */
 
         stage('Fastlane - Build & Sign') {
             steps {
-                dir("${APP_DIR}") {
-                    sh '''
-                        bundle install
-                        bundle exec fastlane android firebase_build_and_upload deploy:false
-                    '''
-                }
+                echo "Skipping Fastlane distribution for now — pipeline ends after SonarQube analysis. APK is already archived from the Android Build stage."
             }
         }
 
@@ -146,13 +144,22 @@ pipeline {
 
     post {
         success {
-            echo "Build #${BUILD_NUMBER} completed — APK built, linted, tested, and Sonar-analyzed. Distribution stages are parked for now."
+            echo "Build #${BUILD_NUMBER} completed — APK built, linted, and Sonar-analyzed. Quality Gate and Fastlane distribution are bypassed for now."
         }
         failure {
             echo "Build #${BUILD_NUMBER} failed — check the stage logs above."
         }
         always {
-            cleanWs()
+            // Workspace is kept between builds on purpose: wiping it every time
+            // (previous cleanWs() behavior) deleted Gradle's native (.cxx) build
+            // cache along with everything else, forcing a full from-scratch C++
+            // recompile on every single run. Now that the build is restricted to
+            // one architecture (arm64-v8a), the disk footprint per build is much
+            // smaller than the original 4-architecture builds that caused the
+            // earlier disk-full incident. Check disk usage periodically instead:
+            //   df -h
+            //   du -sh /var/lib/jenkins/workspace/react-native-chat-pipeline
+            sh 'df -h / || true'
         }
     }
 }
