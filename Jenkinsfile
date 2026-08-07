@@ -126,7 +126,8 @@ pipeline {
             steps {
                 dir("${APP_DIR}") {
                     sh '''
-                        export PATH=$SONAR_SCANNER_JAVA_HOME/bin:$PATH
+                        export JAVA_HOME=$SONAR_SCANNER_JAVA_HOME
+                        export PATH=$JAVA_HOME/bin:$PATH
                         sonar-scanner \
                           -Dsonar.projectKey=react-native-chat-sampleapp \
                           -Dsonar.projectName="React Native Chat - SampleApp" \
