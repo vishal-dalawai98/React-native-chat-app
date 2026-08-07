@@ -106,8 +106,6 @@ pipeline {
                     sh '''
                         chmod +x gradlew
 
-                        ./gradlew clean
-
                         ./gradlew assembleRelease \
                             --no-daemon \
                             --build-cache \
