@@ -2,28 +2,36 @@ pipeline {
     agent any
 
     environment {
+        // Node.js
         NODE_HOME = "/home/azureuser/.nvm/versions/node/v22.23.2"
+
+        // Java
+        JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
+        SONAR_SCANNER_JAVA_HOME = "/usr/lib/jvm/java-21-openjdk-amd64"
+
+        // Sonar Scanner
         SONAR_SCANNER_HOME = "/home/azureuser/sonar-scanner"
+
+        // Android SDK
         ANDROID_HOME = "/home/azureuser/android-sdk"
         ANDROID_SDK_ROOT = "/home/azureuser/android-sdk"
-        JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
+
+        // PATH
         PATH = "${NODE_HOME}/bin:${SONAR_SCANNER_HOME}/bin:${JAVA_HOME}/bin:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${env.PATH}"
 
+        // Project
         APP_DIR = "examples/SampleApp"
         APK_PATH = "${APP_DIR}/android/app/build/outputs/apk/release/app-release.apk"
 
+        // SonarQube Credentials
         SONAR_HOST_URL = credentials('sonar-host-url')
         SONAR_TOKEN = credentials('sonar-token')
-
-        // Firebase distribution parked for now — target to be decided later
-        // FIREBASE_CREDENTIALS_JSON = credentials('firebase-creds-json')
-        // ANDROID_FIREBASE_APP_ID = credentials('firebase-android-app-id')
     }
 
     options {
         timestamps()
-        buildDiscarder(logRotator(numToKeepStr: '15'))
         disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '15'))
     }
 
     stages {
@@ -34,11 +42,25 @@ pipeline {
             }
         }
 
-        stage('Install Node & Yarn') {
+        stage('Environment Verification') {
             steps {
                 sh '''
+                    echo "===== Environment ====="
                     node -v
                     npm -v
+                    java -version
+                    echo "JAVA_HOME=$JAVA_HOME"
+                    echo "SONAR_SCANNER_JAVA_HOME=$SONAR_SCANNER_JAVA_HOME"
+                    sonar-scanner --version
+                    sdkmanager --version || true
+                    adb version || true
+                '''
+            }
+        }
+
+        stage('Enable Yarn') {
+            steps {
+                sh '''
                     corepack enable
                     yarn --version
                 '''
@@ -49,9 +71,17 @@ pipeline {
             steps {
                 sh '''
                     yarn --frozen-lockfile
-                    cd package && yarn --frozen-lockfile && cd ..
-                    cd package/native-package && yarn && cd ../..
-                    cd ${APP_DIR} && yarn && cd -
+
+                    cd package
+                    yarn --frozen-lockfile
+                    cd ..
+
+                    cd package/native-package
+                    yarn
+                    cd ../..
+
+                    cd ${APP_DIR}
+                    yarn
                 '''
             }
         }
@@ -66,14 +96,7 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                dir("${APP_DIR}") {
-                    // Skipped: react-native-reanimated v4's bundled Jest mock has a known
-                    // incompatibility with react-native-worklets internals in this app's
-                    // dependency versions (TypeError: createSerializable is not a function).
-                    // Not a defect in this app's own code — an upstream library gap. Revisit
-                    // once reanimated/worklets ship a compatible mock, or write a custom one.
-                    echo "Skipping unit tests - known reanimated/worklets jest mock incompatibility (see comment above)"
-                }
+                echo "Skipping Jest tests due to known react-native-worklets compatibility issue."
             }
         }
 
@@ -81,10 +104,19 @@ pipeline {
             steps {
                 dir("${APP_DIR}/android") {
                     sh '''
-                        ./gradlew assembleRelease --no-daemon --build-cache -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m" -PreactNativeArchitectures=arm64-v8a
+                        chmod +x gradlew
+
+                        ./gradlew clean
+
+                        ./gradlew assembleRelease \
+                            --no-daemon \
+                            --build-cache \
+                            -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m" \
+                            -PreactNativeArchitectures=arm64-v8a
                     '''
                 }
             }
+
             post {
                 success {
                     archiveArtifacts artifacts: "${APK_PATH}", fingerprint: true
@@ -96,9 +128,7 @@ pipeline {
             steps {
                 dir("${APP_DIR}") {
                     sh '''
-                        export SONAR_SCANNER_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-                        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-                        export PATH=$JAVA_HOME/bin:$PATH
+                        export PATH=$SONAR_SCANNER_JAVA_HOME/bin:$PATH
                         sonar-scanner \
                           -Dsonar.projectKey=react-native-chat-sampleapp \
                           -Dsonar.projectName="React Native Chat - SampleApp" \
@@ -110,59 +140,38 @@ pipeline {
             }
         }
 
-        /* Quality Gate removed — was blocking/slowing the pipeline waiting on Sonar's
-           webhook response. Analysis still runs and uploads to the Sonar dashboard
-           above; just no longer gates the pipeline on the pass/fail result.
-        stage('Quality Gate') {
+        stage('Fastlane') {
             steps {
-                dir("${APP_DIR}") {
-                    timeout(time: 5, unit: 'MINUTES') {
-                        waitForQualityGate abortPipeline: true
-                    }
-                }
+                echo "Skipping Fastlane deployment."
             }
         }
-        */
-
-        stage('Fastlane - Build & Sign') {
-            steps {
-                echo "Skipping Fastlane distribution for now — pipeline ends after SonarQube analysis. APK is already archived from the Android Build stage."
-            }
-        }
-
-        /* Parked for now — distribution target to be decided
-        stage('Deploy to Firebase App Distribution') {
-            when {
-                branch 'main'
-            }
-            steps {
-                dir("${APP_DIR}") {
-                    sh 'bundle exec fastlane android firebase_build_and_upload deploy:true'
-                }
-            }
-        }
-        */
-
     }
 
     post {
+
         success {
-            echo "Build #${BUILD_NUMBER} completed — APK built, linted, and Sonar-analyzed. Quality Gate and Fastlane distribution are bypassed for now."
+            echo "===================================="
+            echo "Build Successful"
+            echo "APK Built Successfully"
+            echo "SonarQube Analysis Completed"
+            echo "===================================="
         }
+
         failure {
-            echo "Build #${BUILD_NUMBER} failed — check the stage logs above."
+            echo "===================================="
+            echo "Build Failed"
+            echo "Check logs above."
+            echo "===================================="
         }
+
         always {
-            // Workspace is kept between builds on purpose: wiping it every time
-            // (previous cleanWs() behavior) deleted Gradle's native (.cxx) build
-            // cache along with everything else, forcing a full from-scratch C++
-            // recompile on every single run. Now that the build is restricted to
-            // one architecture (arm64-v8a), the disk footprint per build is much
-            // smaller than the original 4-architecture builds that caused the
-            // earlier disk-full incident. Check disk usage periodically instead:
-            //   df -h
-            //   du -sh /var/lib/jenkins/workspace/react-native-chat-pipeline
-            sh 'df -h / || true'
+            sh '''
+                echo "===== Disk Usage ====="
+                df -h
+
+                echo "===== Workspace Size ====="
+                du -sh $WORKSPACE || true
+            '''
         }
     }
 }
