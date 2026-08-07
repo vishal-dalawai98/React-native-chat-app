@@ -96,6 +96,8 @@ pipeline {
             steps {
                 dir("${APP_DIR}") {
                     sh '''
+                        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+                        export PATH=$JAVA_HOME/bin:$PATH
                         sonar-scanner \
                           -Dsonar.projectKey=react-native-chat-sampleapp \
                           -Dsonar.projectName="React Native Chat - SampleApp" \
