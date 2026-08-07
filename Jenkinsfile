@@ -96,6 +96,7 @@ pipeline {
             steps {
                 dir("${APP_DIR}") {
                     sh '''
+                        export SONAR_SCANNER_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
                         export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
                         export PATH=$JAVA_HOME/bin:$PATH
                         sonar-scanner \
