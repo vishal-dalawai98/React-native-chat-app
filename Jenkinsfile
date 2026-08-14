@@ -26,6 +26,10 @@ pipeline {
         // SonarQube Credentials
         SONAR_HOST_URL = credentials('sonar-host-url')
         SONAR_TOKEN = credentials('sonar-token')
+
+        // Azure Blob Storage
+        AZURE_STORAGE_CONNECTION_STRING = credentials('azure-storage-connection-string')
+        AZURE_CONTAINER_NAME = "apk-builds"
     }
 
     options {
@@ -136,6 +140,20 @@ pipeline {
                           -Dsonar.login=$SONAR_TOKEN
                     '''
                 }
+            }
+        }
+
+        stage('Upload APK to Azure Blob Storage') {
+            steps {
+                sh '''
+                    BLOB_NAME="app-release-${BUILD_NUMBER}.apk"
+                    az storage blob upload \
+                      --connection-string "$AZURE_STORAGE_CONNECTION_STRING" \
+                      --container-name "$AZURE_CONTAINER_NAME" \
+                      --file "$APK_PATH" \
+                      --name "$BLOB_NAME" \
+                      --overwrite
+                '''
             }
         }
 
