@@ -46,6 +46,21 @@ pipeline {
             }
         }
 
+        stage('Get App Version') {
+            steps {
+                dir("${APP_DIR}") {
+                    script {
+                        env.APP_VERSION = sh(
+                            script: "node -p \"require('./package.json').version\"",
+                            returnStdout: true
+                        ).trim()
+                        env.VERSIONED_APK_NAME = "app-release-v${env.APP_VERSION}-build${env.BUILD_NUMBER}.apk"
+                        echo "App version: ${env.APP_VERSION}, build: ${env.BUILD_NUMBER} -> ${env.VERSIONED_APK_NAME}"
+                    }
+                }
+            }
+        }
+
         stage('Environment Verification') {
             steps {
                 sh '''
@@ -121,7 +136,8 @@ pipeline {
 
             post {
                 success {
-                    archiveArtifacts artifacts: "${APK_PATH}", fingerprint: true
+                    sh "cp ${APK_PATH} ${APP_DIR}/android/app/build/outputs/apk/release/${VERSIONED_APK_NAME}"
+                    archiveArtifacts artifacts: "${APP_DIR}/android/app/build/outputs/apk/release/${VERSIONED_APK_NAME}", fingerprint: true
                 }
             }
         }
@@ -146,12 +162,11 @@ pipeline {
         stage('Upload APK to Azure Blob Storage') {
             steps {
                 sh '''
-                    BLOB_NAME="app-release-${BUILD_NUMBER}.apk"
                     az storage blob upload \
                       --connection-string "$AZURE_STORAGE_CONNECTION_STRING" \
                       --container-name "$AZURE_CONTAINER_NAME" \
-                      --file "$APK_PATH" \
-                      --name "$BLOB_NAME" \
+                      --file "${APP_DIR}/android/app/build/outputs/apk/release/${VERSIONED_APK_NAME}" \
+                      --name "$VERSIONED_APK_NAME" \
                       --overwrite
                 '''
             }
